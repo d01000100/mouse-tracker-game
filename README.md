@@ -1,2 +1,3 @@
 # mouse-tracker-game
-Cursor tracker game made in a HTML5 canvas component.
+
+Cursor tracker game made with three.js.
