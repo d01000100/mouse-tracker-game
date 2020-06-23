@@ -1,11 +1,11 @@
 // Global variables
 var screenElement = document.querySelector("#game");
-var cursorPos = {x: 0, y: 0};
+var cursorPos = new THREE.Vector2(0,0);
+var pastPos = new THREE.Vector2(0,0);
 var scene = new THREE.Scene();
 var screenWidth = screenElement.clientWidth;
 var screenHeight = screenElement.clientHeight;
 var ratio = screenWidth / screenHeight;
-var cursorPos = {x: 0, y: 0};
 
 // Init
 var camera = new THREE.PerspectiveCamera( 75, ratio, 0.1, 1000 );
@@ -21,9 +21,18 @@ var spriteMaterial = new THREE.SpriteMaterial( { map: spriteMap } );
 var sprite = new THREE.Sprite( spriteMaterial );
 scene.add( sprite );
 
-// Squid movement
-function onMouseMove(event) {
-  
+/***
+ *      __  __                           _   
+ *     |  \/  |_____ _____ _ __  ___ _ _| |_ 
+ *     | |\/| / _ \ V / -_) '  \/ -_) ' \  _|
+ *     |_|  |_\___/\_/\___|_|_|_\___|_||_\__|
+ *                                           
+ */
+function updateSquidPosition(event)
+ {
+  // Store the last position
+  pastPos.copy(cursorPos);
+
   // Update the cursos position
   event.preventDefault();
   let gameScreenPos = getPosition(screenElement);
@@ -36,9 +45,10 @@ function onMouseMove(event) {
 	var dir = vector.sub( camera.position ).normalize();
 	var distance = - camera.position.z / dir.z;
 	var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
-	sprite.position.copy(pos);
+  sprite.position.copy(pos);
+  
 };
-document.addEventListener('mousemove', onMouseMove, false);
+document.addEventListener('mousemove', updateSquidPosition, false);
 
 function getPosition(el) {
   var xPosition = 0;
@@ -55,8 +65,35 @@ function getPosition(el) {
   };
 }
 
+/***
+ *      ___     _        _   _          
+ *     | _ \___| |_ __ _| |_(_)___ _ _  
+ *     |   / _ \  _/ _` |  _| / _ \ ' \ 
+ *     |_|_\___/\__\__,_|\__|_\___/_||_|
+ *                                      
+ */
+function rotateSprite(sprite, direction)
+{
+  let angleFromTop = direction.angle() - THREE.MathUtils.degToRad(90);
+  sprite.material.rotation = angleFromTop;
+}
+
+function log (string)
+{
+  let logEl = document.querySelector("#log");
+  logEl.innerHTML = string;
+}
+
 function animate() {
 	requestAnimationFrame( animate );
   renderer.render( scene, camera );
+
+  let dir = new THREE.Vector2(0,0);
+  dir.subVectors(cursorPos, pastPos);
+  log("past: (" + pastPos.x + "," + pastPos.y  + ") currentPos: (" + cursorPos.x + "," + cursorPos.y + ")");
+  if (dir.length() > 0.011)
+  {
+    rotateSprite(sprite, dir);
+  }
 }
 animate();
