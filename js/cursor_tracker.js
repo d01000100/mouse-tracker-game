@@ -6,20 +6,23 @@ var scene = new THREE.Scene();
 var screenWidth = screenElement.clientWidth;
 var screenHeight = screenElement.clientHeight;
 var ratio = screenWidth / screenHeight;
+var clock = new THREE.Clock();
+var deltaTime = 1 / 30;
 
 // Init
 var camera = new THREE.PerspectiveCamera( 75, ratio, 0.1, 1000 );
 
-var renderer = new THREE.WebGLRenderer();
+var renderer = new THREE.WebGLRenderer({ alpha: true });;
 renderer.setSize( screenWidth, screenHeight);
 screenElement.appendChild( renderer.domElement );
 camera.position.z = 5;
 
 // Set up Scene
-var spriteMap = new THREE.TextureLoader().load( "assets/squid.png" );
-var spriteMaterial = new THREE.SpriteMaterial( { map: spriteMap } );
-var sprite = new THREE.Sprite( spriteMaterial );
-scene.add( sprite );
+var squidTexture = new THREE.TextureLoader().load( "assets/squid.png" );
+var squidMaterial = new THREE.SpriteMaterial( { map: squidTexture } );
+var squidSprite = new THREE.Sprite( squidMaterial );
+squidSprite.scale.set(1.2,1.2,1.2);
+scene.add( squidSprite );
 
 /***
  *      __  __                           _   
@@ -45,18 +48,31 @@ function updateSquidPosition(event)
 	var dir = vector.sub( camera.position ).normalize();
 	var distance = - camera.position.z / dir.z;
 	var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
-  sprite.position.copy(pos);
+  squidSprite.position.copy(pos);
   
 };
 document.addEventListener('mousemove', updateSquidPosition, false);
 
+/*
+  Get the position on the screen where a DOM element starts
+  Got from https://www.kirupa.com/html5/getting_mouse_click_position.htm
+*/
 function getPosition(el) {
   var xPosition = 0;
   var yPosition = 0;
  
   while (el) {
-    xPosition += (el.offsetLeft - el.scrollLeft + el.clientLeft);
-    yPosition += (el.offsetTop - el.scrollTop + el.clientTop);
+    if (el.tagName == "BODY") {
+      // deal with browser quirks with body/window/document and page scroll
+      var xScrollPos = el.scrollLeft || document.documentElement.scrollLeft;
+      var yScrollPos = el.scrollTop || document.documentElement.scrollTop;
+ 
+      xPosition += (el.offsetLeft - xScrollPos + el.clientLeft);
+      yPosition += (el.offsetTop - yScrollPos + el.clientTop);
+    } else {
+      xPosition += (el.offsetLeft - el.scrollLeft + el.clientLeft);
+      yPosition += (el.offsetTop - el.scrollTop + el.clientTop);
+    }
     el = el.offsetParent;
   }
   return {
@@ -84,16 +100,92 @@ function log (string)
   logEl.innerHTML = string;
 }
 
+/*
+          ___      _    _    _        
+        | _ )_  _| |__| |__| |___ ___
+        | _ \ || | '_ \ '_ \ / -_|_-<
+        |___/\_,_|_.__/_.__/_\___/__/
+                                      
+*/
+var bubbleTexture = new THREE.TextureLoader().load( "assets/bubble.png" );
+var bubbleMaterials = [];
+var bubbleSprites = [];
+var nBubbles = 8;
+var bubbleVel = 0.7;
+for (let x = 0;x < nBubbles; x++)
+{
+  let newMaterial = new THREE.SpriteMaterial( { 
+    map: bubbleTexture,
+    transparent: true,
+    opacity: 1
+   } );
+  bubbleMaterials.push(newMaterial);
+
+  let newSprite = new THREE.Sprite(newMaterial);
+  newSprite.scale.set(0.2,0.2,0.2);
+  newSprite.visible = false;
+  bubbleSprites.push(newSprite);
+  scene.add(newSprite);
+}
+
+var bubbleTimeToAppear = 0.1; // every 0.3s a buble appears
+var bubbleDuration = bubbleTimeToAppear * nBubbles;
+var bubbleTimer = 0, bubbleIndex = 0;
+
+function renderBubbles() 
+{
+  bubbleTimer += deltaTime;
+
+  if (bubbleTimer >= bubbleTimeToAppear)
+  {
+    let bubble = bubbleSprites[bubbleIndex];
+    bubble.visible = true;
+    bubble.position.copy(squidSprite.position);
+    bubble.position.z = -0.01;
+
+    let material = bubbleMaterials[bubbleIndex];
+    material.opacity = 1;
+
+    bubbleIndex++;
+    bubbleIndex %= nBubbles;
+
+    bubbleTimer = 0;
+  }
+
+  bubbleSprites.forEach(function (bubble){
+    bubble.position.y += bubbleVel * deltaTime;
+  })
+
+  bubbleMaterials.forEach(function (material) {
+    material.opacity *= 0.98;
+  })
+}
+
 function animate() {
 	requestAnimationFrame( animate );
   renderer.render( scene, camera );
+  deltaTime = clock.getDelta();
 
   let dir = new THREE.Vector2(0,0);
   dir.subVectors(cursorPos, pastPos);
-  log("past: (" + pastPos.x + "," + pastPos.y  + ") currentPos: (" + cursorPos.x + "," + cursorPos.y + ")");
   if (dir.length() > 0.011)
   {
-    rotateSprite(sprite, dir);
+    rotateSprite(squidSprite, dir);
   }
+
+  renderBubbles();
 }
 animate();
+
+window.addEventListener( 'resize', onWindowResize, false );
+function onWindowResize()
+{
+  screenWidth = screenElement.clientWidth;
+  screenHeight = screenElement.clientHeight;
+  ratio = screenWidth / screenHeight;
+  camera.aspect = ratio;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize( screenWidth, screenHeight );
+
+}
